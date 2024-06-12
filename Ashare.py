@@ -7,16 +7,16 @@ import functools
 import requests
 
 # 可用alist地址，将会上传到第一个可用地址
-available_urls = ['http://xxx.xxx.xxx', 'http://xxx.xxx.xxx', ]
+available_urls = ['http://xxx.xxx.xxx', 'http://xxxx.xxxx.xxxx', ]
 # 可能的用户，将会使用第一个可用的用户
-available_user = [{'name': 'xxxx', 'pass': 'xxxxx'},
-                  {'name': 'mxxxxxxxr', 'pass': 'xxxxxxx'},
+available_user = [{'name': 'xxxx', 'pass': 'xxxxxxxxx'},
+                  {'name': 'xxxxxxx', 'pass': 'xxxxxxxxxxxxxxxxxxx'},
                   ]
 # 将要被监视的文件夹
 # source：文件夹  target：将要上传到的文件夹
 # ext：将要备份的后缀名列表，判断逻辑是以该字符串结尾，包含'.*'时上传所有文件
 watch_folders = [{'source': 'E:\\办公室\\笔记', 'target': '/家/备份1T/MAGIK', 'ext': ['.*']},
-                 {'source': 'E:\\画廊\\漫画\\黄漫', 'target': '/家/图片/图片备份/来自magnet', 'ext': ['.*']},
+                 {'source': 'E:\\画廊\\漫画\\黄漫', 'target': '/家/图片/图片备份/来自magnet', 'ext': ['.jpg', '.zip']},
                  ]
 # 上传记录保存位置
 data_file = 'c:\\菜单指令\\Ashare2.0\\upload_data.txt'
@@ -183,3 +183,50 @@ if __name__ == '__main__':
                     f.write(str(last_times))
             except FileNotFoundError:
                 print("上传数据文件打开失败，请尝试创建：" + data_file)
+            except IndexError:
+                print('参数数量错误')
+
+        # 清理上传记录文件
+        elif order == '-c' or order == 'c':
+            countAdd = 0
+            countDel = 0
+            with open(data_file, "r") as f:
+                last_times = eval(f.read())
+            for folders in watch_folders:  # 遍历监控的文件夹
+                if re.match('.*/$', folders['target']) is None:  # 保证目标路径以/结尾，方便拼接路径
+                    folders['target'] = folders['target'] + '/'
+                for root, dirs, files in os.walk(folders['source']):  # 遍历文件夹
+                    for filename in files:  # 选中文件文件
+                        if match_ext(filename, folders['ext']):  # 选中指定后缀文件
+                            file_path = os.path.join(root, filename)  # 拼接本地完整路径
+                            current_time = os.path.getmtime(file_path)  # 获取文件修改时间
+                            if file_path not in last_times or last_times[file_path] != current_time:
+                                countAdd = countAdd + 1
+                to_remove = []
+                for paths, time in last_times.items():
+                    if not os.path.exists(paths):
+                        to_remove.append(paths)
+                        countDel = countDel + 1
+                    if paths.startswith(folders['source']) and not match_ext(paths, folders['ext']):
+                        to_remove.append(paths)
+                        countDel = countDel + 1
+                for paths in to_remove:
+                    last_times.pop(paths, None)
+            with open(data_file, "w") as f:
+                f.write(str(last_times))
+            print(f'有{countAdd}个文件具有更新尚未提交。')
+            print(f'有{countDel}个文件已经从记录中删除。')
+        # 上传指定文件到指定目录
+        elif order == '-u' or 'u':
+            try:
+                target = sys.argv.pop(0)
+                alist = connect()
+                while len(sys.argv)>0:
+                    upload(alist, target, sys.argv.pop(0))
+            except IndexError:
+                print('参数数量错误')
+            except FileNotFoundError:
+                print('文件打开出错，找不到指定文件')
+
+
+
