@@ -7,10 +7,10 @@ import functools
 import requests
 
 # 可用alist地址，将会上传到第一个可用地址
-available_urls = ['http://awin-x.top', 'http://awin.l2.ttut.cc', ]
+available_urls = ['http://xxx.xxx.xxx', 'http://xxx.xxx.xxx', ]
 # 可能的用户，将会使用第一个可用的用户
-available_user = [{'name': 'admin', 'pass': '2038xY6677yy889'},
-                  {'name': 'monitor', 'pass': '1973@QZWXECRVTBYNUMLKJHGFDSA1973'},
+available_user = [{'name': 'xxxx', 'pass': 'xxxxx'},
+                  {'name': 'mxxxxxxxr', 'pass': 'xxxxxxx'},
                   ]
 # 将要被监视的文件夹
 # source：文件夹  target：将要上传到的文件夹
