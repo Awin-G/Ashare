@@ -4,6 +4,7 @@ import sys
 import urllib
 import threading
 import functools
+import zipfile
 import requests
 
 # 可用alist地址，将会上传到第一个可用地址
@@ -15,8 +16,9 @@ available_user = [{'name': 'xxxx', 'pass': 'xxxxxxxxx'},
 # 将要被监视的文件夹
 # source：文件夹  target：将要上传到的文件夹
 # ext：将要备份的后缀名列表，判断逻辑是以该字符串结尾，包含'.*'时上传所有文件
-watch_folders = [{'source': 'E:\\办公室\\笔记', 'target': '/家/备份1T/MAGIK', 'ext': ['.*']},
-                 {'source': 'E:\\画廊\\漫画\\黄漫', 'target': '/家/图片/图片备份/来自magnet', 'ext': ['.jpg', '.zip']},
+watch_folders = [{'source': 'E:\\办公室\\笔记', 'target': '/家/备份1T/MAGIK', 'ext': ['.*'], 'mode': 'default'},
+                 {'source': 'E:\\画廊\\漫画\\黄漫', 'target': '/家/图片/图片备份/来自magnet',
+                  'ext': ['.jpg', '.zip'], 'mode': 'zip'},
                  ]
 # 上传记录保存位置
 data_file = 'c:\\菜单指令\\Ashare2.0\\upload_data.txt'
@@ -96,7 +98,7 @@ def upload_thread(connection, path, file):
             message = connection.upload(path, file)
             if message == 'success':
                 print(file + '上传成功')
-                #return connection.geturl(path)
+                # return connection.geturl(path)
         except FileNotFoundError:
             print('无法打开' + file)
             print('文件打开失败')
@@ -162,6 +164,7 @@ if __name__ == '__main__':
                 for folders in watch_folders:  # 遍历有哪些文件夹需要监控
                     if re.match('.*/$', folders['target']) is None:  # 保证目标路径以/结尾，方便拼接路径
                         folders['target'] = folders['target'] + '/'
+                    zip = zipfile.ZipFile('./tmp.zip', 'w', zipfile.ZIP_DEFLATED)
                     for root, dirs, files in os.walk(folders['source']):  # 遍历文件夹
                         for filename in files:  # 选中文件文件
                             if match_ext(filename, folders['ext']):  # 选中指定后缀文件
@@ -169,16 +172,29 @@ if __name__ == '__main__':
                                 current_time = os.path.getmtime(file_path)  # 获取文件修改时间
                                 if file_path not in last_times or last_times[file_path] != current_time:  # 选中更新的文件
                                     # 创建上传任务
-                                    upload(alist,
-                                           folders['target'] + os.path.relpath(file_path, start=folders['source']),
-                                           file_path,
-                                           name='given in path')
+                                    if folders['mode'] == 'default':
+                                        upload(alist,
+                                               folders['target'] + os.path.relpath(file_path, start=folders['source']),
+                                               file_path,
+                                               name='given in path')
+                                    elif folders['mode'] == 'zip':
+                                        zip.write(file_path)
                                     upload_count = upload_count + 1
                                     last_times[file_path] = current_time  # 更新修改时间
                                     if upload_count % 20 == 0:
                                         # 保存上传信息
                                         with open(data_file, "w") as f:
                                             f.write(str(last_times))
+                    zip.close()
+                    if folders['mode'] == 'zip':
+                        upload(alist,
+                               folders['target'] + os.path.basename(folders['source']) + '.zip',
+                               './tmp.zip',
+                               name='given in path')
+                    try:
+                        os.remove('./tmp.zip')
+                    except NotImplementedError:
+                        print('压缩模式：临时文件删除失败，注意运行目录权限问题和空间是否充足。')
                 with open(data_file, "w") as f:
                     f.write(str(last_times))
             except FileNotFoundError:
@@ -221,12 +237,9 @@ if __name__ == '__main__':
             try:
                 target = sys.argv.pop(0)
                 alist = connect()
-                while len(sys.argv)>0:
+                while len(sys.argv) > 0:
                     upload(alist, target, sys.argv.pop(0))
             except IndexError:
                 print('参数数量错误')
             except FileNotFoundError:
                 print('文件打开出错，找不到指定文件')
-
-
-
