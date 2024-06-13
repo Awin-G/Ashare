@@ -25,6 +25,8 @@ data_file = 'c:\\菜单指令\\Ashare2.0\\upload_data.txt'
 # 多线程信号，控制最多同时上传的文件数。
 semaphore = threading.Semaphore(3)
 
+# 压缩临时文件位置
+zip_file = 'c:\\菜单指令\\Ashare2.0\\tmp.zip'
 
 class Connect:
     def __init__(self, url: str, name: str, password: str):
@@ -164,7 +166,13 @@ if __name__ == '__main__':
                 for folders in watch_folders:  # 遍历有哪些文件夹需要监控
                     if re.match('.*/$', folders['target']) is None:  # 保证目标路径以/结尾，方便拼接路径
                         folders['target'] = folders['target'] + '/'
-                    zip = zipfile.ZipFile('./tmp.zip', 'w', zipfile.ZIP_DEFLATED)
+                    try:
+                        os.remove(zip_file)
+                    except NotImplementedError:
+                        print('压缩：临时文件删除失败，注意运行目录权限问题和空间是否充足。')
+                    except FileNotFoundError:
+                        print('...')
+                    zip = zipfile.ZipFile(zip_file, 'w', zipfile.ZIP_DEFLATED)
                     for root, dirs, files in os.walk(folders['source']):  # 遍历文件夹
                         for filename in files:  # 选中文件文件
                             if match_ext(filename, folders['ext']):  # 选中指定后缀文件
@@ -177,24 +185,20 @@ if __name__ == '__main__':
                                                folders['target'] + os.path.relpath(file_path, start=folders['source']),
                                                file_path,
                                                name='given in path')
-                                    elif folders['mode'] == 'zip':
-                                        zip.write(file_path)
                                     upload_count = upload_count + 1
                                     last_times[file_path] = current_time  # 更新修改时间
                                     if upload_count % 20 == 0:
                                         # 保存上传信息
                                         with open(data_file, "w") as f:
                                             f.write(str(last_times))
+                                if folders['mode'] == 'zip':
+                                    zip.write(file_path)
                     zip.close()
                     if folders['mode'] == 'zip':
                         upload(alist,
                                folders['target'] + os.path.basename(folders['source']) + '.zip',
-                               './tmp.zip',
+                               zip_file,
                                name='given in path')
-                    try:
-                        os.remove('./tmp.zip')
-                    except NotImplementedError:
-                        print('压缩模式：临时文件删除失败，注意运行目录权限问题和空间是否充足。')
                 with open(data_file, "w") as f:
                     f.write(str(last_times))
             except FileNotFoundError:
